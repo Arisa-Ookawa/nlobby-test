@@ -1,2 +1,16 @@
 # nlobby-test
-Testing and validation repository for NLobby infrastructure and CI/CD pipelines.
+
+NLobby環境のテスト・動作検証用リポジトリです。
+
+## 🎯 構成・利用目的
+* **本番環境のシミュレーション:** NLobbyのインフラ環境およびCI/CDの挙動を安全にシミュレートするために構築されています。
+* **事前検証の場:** 開発チームからの依頼時や、新規リソース（ECS, ECR, ALB等）の追加・修正を行う際、既存の本番・ステージング環境へ影響を与えることなく、安全に挙動を確認するために利用します。
+
+## 🚀 How to deploy ?
+GitHub Actionsを利用して、手動（マニュアル）でデプロイを実行します。
+
+1. GithubActionsにて **[Manual Apply]** を選択します。
+2. **[Run workflow]** ボタンをクリックし、デプロイ対象のブランチ等を選択して実行します。
+
+## 📌 補足
+* TBD
