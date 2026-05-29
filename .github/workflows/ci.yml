@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  pull_request:
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo placehold
+
+  get-target-directory:
+    runs-on: ubuntu-latest
+    outputs:
+      terraform_directories: ${{ steps.get-terraform-directory.outputs.terraform_directories }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+        with:
+          fetch-depth: 0
+      - name: Get Terraform Directories
+        id: get-terraform-directory
+        run: |
+          changed_modules=$(git --no-pager diff origin/main...HEAD --name-only | grep modules/ | xargs -I {} dirname {} | uniq)
+          echo "changed_modules=${changed_modules}"
+          changed_envs=$(git --no-pager diff origin/main...HEAD --name-only | grep env/ | xargs -I {} dirname {} | uniq)
+          echo "changed_envs=${changed_envs}"
+          target_directories=()
+          for module in $changed_modules; do
+            if [[ ${module} == *"services"* ]]; then
+              target_directories+=(env/exp/services)
+              target_directories+=(env/staging/services)
+              target_directories+=(env/production/services)
+            fi
+            if [[ ${module} == *"cores/database"* ]]; then
+              target_directories+=(env/exp/cores/database)
+              target_directories+=(env/staging/cores/database)
+              target_directories+=(env/production/cores/database)
+            fi
+            if [[ ${module} == *"cores/storage"* ]]; then
+              target_directories+=(env/exp/cores/storage)
+              target_directories+=(env/staging/cores/storage)
+              target_directories+=(env/production/cores/storage)
+            fi
+            if [[ ${module} == *"monitors/cloudwatch/alarm"* ]]; then
+              target_directories+=(env/exp/monitors/alarms)
+              target_directories+=(env/staging/monitors/alarms)
+              target_directories+=(env/production/monitors/alarms)
+            fi
+            if [[ ${module} == *"managers/bastion"* ]]; then
+              target_directories+=(env/exp/managers)
+              target_directories+=(env/staging/managers)
+              target_directories+=(env/production/managers)
+            fi
+          done
+          for env in $changed_envs; do
+            target_directories+=(${env})
+          done
+          target_directories=($(echo "${target_directories[@]}" | tr ' ' '\n' | sort -u))
+          output=$(printf '%s\n' "${target_directories[@]}" | jq -R . | jq -s 'map(select(length > 0))' -c)
+          echo "output=${output}"
+          echo "terraform_directories=${output}" >> $GITHUB_OUTPUT
+
+  terraform:
+    needs: get-target-directory
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        directory: ${{ fromJson(needs.get-target-directory.outputs.terraform_directories) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.directory }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          type: "ci"
+          gh_app_id: ${{ secrets.APP_ID }}
+          gh_app_private_key: ${{ secrets.APP_PEM }}
+
+      - name: Terraform Fmt
+        run: terraform fmt -no-color -check -diff -recursive
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: tfcmt -var "target:${{ matrix.directory }}" plan -patch -- terraform plan -no-color -input=false

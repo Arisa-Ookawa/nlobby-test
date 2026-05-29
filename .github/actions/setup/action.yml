@@ -1,0 +1,62 @@
+name: setup
+description: setup
+
+inputs:
+  type:
+    required: true
+    default: "ci"
+  gh_app_id:
+    required: true
+  gh_app_private_key:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Get .terraform-version
+      shell: bash
+      id: get-terraform-version
+      run: echo "version=$(cat .terraform-version)" >> $GITHUB_OUTPUT
+
+    - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+      with:
+        terraform_version: ${{ steps.get-terraform-version.outputs.version }}
+
+    - name: Install tfcmt
+      if: ${{ inputs.type == 'ci' }}
+      shell: bash
+      env:
+        TFCMT_VERSION: v4.13.0
+      run: |
+        wget "https://github.com/suzuki-shunsuke/tfcmt/releases/download/${TFCMT_VERSION}/tfcmt_linux_amd64.tar.gz" -O /tmp/tfcmt.tar.gz
+        tar zxf /tmp/tfcmt.tar.gz -C /tmp
+        mv /tmp/tfcmt /usr/local/bin
+        tfcmt --version
+
+    - name: Get AWS IAM Role ARN
+      shell: bash
+      id: get-aws-iam-role-arn
+      run: |
+        if [[ ${{ inputs.type }} == 'ci' ]]; then
+          echo "aws_iam_role_arn=arn:aws:iam::133775794121:role/nlobby-global-gha-hcl-ci-role" >> $GITHUB_OUTPUT
+        elif [[ ${{ inputs.type }} == 'cd' ]]; then
+          echo "aws_iam_role_arn=arn:aws:iam::133775794121:role/nlobby-global-gha-hcl-cd-role" >> $GITHUB_OUTPUT
+        fi
+
+    - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+      with:
+        aws-region: ap-northeast-1
+        role-to-assume: ${{ steps.get-aws-iam-role-arn.outputs.aws_iam_role_arn }}
+
+    - name: Generate GitHub App Token
+      uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a
+      id: app-token
+      with:
+        app_id: ${{ inputs.gh_app_id }}
+        private_key: ${{ inputs.gh_app_private_key }}
+        installation_retrieval_mode: "organization"
+        installation_retrieval_payload: "dwango-zane"
+
+    - name: Set GitHub Token
+      shell: bash
+      run: |
