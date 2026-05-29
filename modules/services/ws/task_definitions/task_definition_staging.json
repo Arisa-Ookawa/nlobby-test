@@ -1,0 +1,31 @@
+[
+  {
+    "name": "${project}-${environment}-ws-task-${sfx}",
+    "image": "${repository_url}:latest",
+    "portMappings": [
+      {
+        "containerPort": 3003,
+        "hostPort": 3003,
+        "protocol": "tcp"
+      }
+    ],
+    "cpu": 0,
+    "environment": [],
+    "secrets": [],
+    "volumesFrom": [],
+    "readonlyRootFilesystem": false,
+    "essential": true,
+    "environmentFiles": [],
+    "stopTimeout": 30,
+    "networkMode": "awsvpc",
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "/ecs/${project}-${environment}-ws-log-group-${sfx}",
+        "awslogs-region": "${region}",
+        "awslogs-stream-prefix": "ecs",
+        "awslogs-datetime-format": "^\\[%H:%M:%S\\.]"
+      }
+    }
+  }
+]

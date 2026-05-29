@@ -1,0 +1,30 @@
+[
+  {
+    "name": "${project}-${environment}-cms-${sfx}",
+    "image": "${repository_url}:latest",
+    "portMappings": [
+      {
+        "containerPort": 3002,
+        "hostPort": 3002,
+        "protocol": "tcp"
+      }
+    ],
+    "cpu": 0,
+    "environment": [],
+    "secrets": [],
+    "volumesFrom": [],
+    "readonlyRootFilesystem": false,
+    "essential": true,
+    "environmentFiles": [],
+    "stopTimeout": 30,
+    "networkMode": "awsvpc",
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "/ecs/${project}-${environment}-cms-${sfx}",
+        "awslogs-region": "${region}",
+        "awslogs-stream-prefix": "ecs"
+      }
+    }
+  }
+]
